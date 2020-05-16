@@ -1,10 +1,10 @@
-import {MetricsPanelCtrl} from 'app/plugins/sdk';
+import { MetricsPanelCtrl } from 'app/plugins/sdk';
 import _ from 'lodash';
 import kbn from 'app/core/utils/kbn';
 import TimeSeries from 'app/core/time_series';
 import rendering from './rendering';
-import {SVGDemos} from './demos';
-import {Snap} from './node_modules/snapsvg/dist/snap.svg-min.js';
+import { SVGDemos } from './demos';
+import { Snap } from './node_modules/snapsvg/dist/snap.svg-min.js';
 import ace from './node_modules/brace/index.js';
 import './node_modules/brace/ext/language_tools.js';
 import './node_modules/brace/theme/tomorrow_night_bright.js';
@@ -107,6 +107,10 @@ export class SVGCtrl extends MetricsPanelCtrl {
             js_code: '',
             js_init_code: '',
             useSVGBuilder: false,
+            clickMapperEnabled: false,
+            svgIdMappings: [],
+            svgElements: {},
+            editorCompletion: true,
             svgBuilderData: {
                 width: '100%',
                 height: '100%',
@@ -135,13 +139,12 @@ export class SVGCtrl extends MetricsPanelCtrl {
     }
 
     onInitEditMode() {
-        this.addEditorTab('SVG Builder', 'public/plugins/marcuscalidus-svg-panel/editor_builder.html', 2);
-        this.addEditorTab('SVG', 'public/plugins/marcuscalidus-svg-panel/editor_svg.html', 3);
-        this.addEditorTab('Events', 'public/plugins/marcuscalidus-svg-panel/editor_events.html', 4);
+        this.addEditorTab('SVG Builder', 'public/plugins/aceiot-svg-panel/editor_builder.html', 2);
+        this.addEditorTab('SVG', 'public/plugins/aceiot-svg-panel/editor_svg.html', 3);
+        this.addEditorTab('Events', 'public/plugins/aceiot-svg-panel/editor_events.html', 4);
         this.prepareEditor();
         this.unitFormats = kbn.getUnitFormats();
         this.aceLangTools = ace.acequire("ace/ext/language_tools");
-
         this.aceLangTools.addCompleter(new GrafanaJSCompleter(this.aceLangTools, this, this.panel));
     }
 
@@ -164,7 +167,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
                 }.bind(this));
                 this.editors[nodeId].setOptions({
                     enableBasicAutocompletion: true,
-                    enableLiveAutocompletion: true,
+                    enableLiveAutocompletion: this.panel.editorCompletion,
                     theme: 'ace/theme/tomorrow_night_bright',
                     mode: 'ace/mode/javascript',
                     showPrintMargin: false
@@ -192,7 +195,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
                 }.bind(this));
                 this.editors[nodeId].setOptions({
                     enableBasicAutocompletion: true,
-                    enableLiveAutocompletion: true,
+                    enableLiveAutocompletion: this.panel.editorCompletion,
                     readOnly: this.panel.useSVGBuilder,
                     theme: 'ace/theme/tomorrow_night_bright',
                     mode: 'ace/mode/svg',
@@ -201,6 +204,39 @@ export class SVGCtrl extends MetricsPanelCtrl {
             }
         }.bind(this), 100);
         return true;
+    }
+    removeSvgIdMapping(svgIdMapping) {
+        for (let i = 0; i < this.panel.svgIdMappings.length; i++) {
+            if (svgIdMapping.svgId === this.panel.svgIdMappings[i].svgId) {
+                this.panel.svgIdMappings.splice(i, 1);
+                console.log(this.panel.svgIdMappings);
+                this.updateMappings();
+            }
+        }
+    }
+    svgClickHandler(event) {
+        let clicked = event.target;
+        while (clicked.id === '') {
+            clicked = clicked.parentNode;
+        }
+        // window.lastClicked = clicked;
+        //   console.log(clicked.id)
+        this.panel.svgIdMappings.push(
+            { 'svgId': clicked.id, 'mappedName': '' }
+        )
+        console.log(this.panel.svgIdMappings);
+    }
+    updateClickMapper() {
+        if (this.panel.clickMapperEnabled) {
+            document.getElementsByClassName('svg-object')[0].addEventListener('click', this.svgClickHandler.bind(this), false);
+        }
+        else {
+            document.getElementsByClassName('svg-object')[0].removeEventListener('click', this.svgClickHandler, false);
+        }
+    }
+    updateMappings() {
+        this.resetSVG();
+        this.render();
     }
 
     setUnitFormat(subItem) {
@@ -219,13 +255,31 @@ export class SVGCtrl extends MetricsPanelCtrl {
         this.render();
     }
 
+    doInit(ctrl, svgnode) {
+        try {
+            ctrl.panel.doInitUserFunction(ctrl, svgnode);
+        } catch (error) {
+            console.log(`Failed to run provided user init code, check code for errors and try again. Error: ${error}`)
+        }
+    }
+
+    handleMetric(ctrl, svgnode) {
+        try {
+            ctrl.panel.handleMetricUserFunction(ctrl, svgnode);
+        } catch (error) {
+            console.log(`Failed to run provided user event code, check code for errors and try again. Error: ${error}`)
+        }
+    }
+
     setHandleMetricFunction() {
-        this.panel.handleMetric = Function('ctrl', 'svgnode', this.panel.js_code);
+        this.panel.handleMetricUserFunction = Function('ctrl', 'svgnode', this.panel.js_code);
+        this.panel.handleMetric = this.handleMetric;
     }
 
     setInitFunction() {
         this.initialized = 0;
-        this.panel.doInit = Function('ctrl', 'svgnode', this.panel.js_init_code);
+        this.panel.doInitUserFunction = Function('ctrl', 'svgnode', this.panel.js_init_code);
+        this.panel.doInit = this.doInit;
     }
 
     onRender() {
@@ -288,7 +342,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
             return datapoint;
         });
 
-        return {columnNames: columnNames, rows: rows};
+        return { columnNames: columnNames, rows: rows };
     }
 
     getSeriesIdByAlias(aliasName) {
@@ -310,7 +364,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
 
     getDecimalsForValue(value) {
         if (_.isNumber(this.panel.decimals)) {
-            return {decimals: this.panel.decimals, scaledDecimals: null};
+            return { decimals: this.panel.decimals, scaledDecimals: null };
         }
 
         var delta = value / 2;

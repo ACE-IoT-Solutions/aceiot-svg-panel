@@ -1,9 +1,9 @@
 'use strict';
 
-System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_modules/snapsvg/dist/snap.svg-min.js'], function (_export, _context) {
+System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_modules/snapsvg/dist/snap.svg-min.js', './node_modules/@svgdotjs/svg.js/dist/svg.min.js'], function (_export, _context) {
   "use strict";
 
-  var _, $, SnapLib;
+  var _, $, SnapLib, SVG;
 
   function link(scope, elem, attrs, ctrl) {
     var panel;
@@ -58,6 +58,13 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
       plotCanvas.css(plotCss);
     }
 
+    function initializeMappings(svgnode) {
+      ctrl.svgElements = {};
+      for (var i = 0; i < ctrl.panel.svgIdMappings.length; i++) {
+        ctrl.svgElements[ctrl.panel.svgIdMappings[i].mappedName] = SVG('#' + ctrl.panel.svgIdMappings[i].svgId);
+      }
+      console.log(ctrl.svgElements);
+    }
     function render() {
       panel = ctrl.panel;
 
@@ -74,6 +81,7 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
 
           if (!ctrl.initialized) {
             addSVG();
+            initializeMappings(svgnode);
             panel.doInit(ctrl, svgnode);
             ctrl.initialized = 1;
           }
@@ -97,6 +105,8 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
       $ = _jquery.default;
     }, function (_jqueryFlot) {}, function (_jqueryFlotPie) {}, function (_node_modulesSnapsvgDistSnapSvgMinJs) {
       SnapLib = _node_modulesSnapsvgDistSnapSvgMinJs;
+    }, function (_node_modulesSvgdotjsSvgJsDistSvgMinJs) {
+      SVG = _node_modulesSvgdotjsSvgJsDistSvgMinJs.SVG;
     }],
     execute: function () {}
   };

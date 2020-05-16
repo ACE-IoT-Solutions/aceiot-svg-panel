@@ -184,6 +184,10 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                         js_code: '',
                         js_init_code: '',
                         useSVGBuilder: false,
+                        clickMapperEnabled: false,
+                        svgIdMappings: [],
+                        svgElements: {},
+                        editorCompletion: true,
                         svgBuilderData: {
                             width: '100%',
                             height: '100%',
@@ -215,13 +219,12 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                 _createClass(SVGCtrl, [{
                     key: 'onInitEditMode',
                     value: function onInitEditMode() {
-                        this.addEditorTab('SVG Builder', 'public/plugins/marcuscalidus-svg-panel/editor_builder.html', 2);
-                        this.addEditorTab('SVG', 'public/plugins/marcuscalidus-svg-panel/editor_svg.html', 3);
-                        this.addEditorTab('Events', 'public/plugins/marcuscalidus-svg-panel/editor_events.html', 4);
+                        this.addEditorTab('SVG Builder', 'public/plugins/aceiot-svg-panel/editor_builder.html', 2);
+                        this.addEditorTab('SVG', 'public/plugins/aceiot-svg-panel/editor_svg.html', 3);
+                        this.addEditorTab('Events', 'public/plugins/aceiot-svg-panel/editor_events.html', 4);
                         this.prepareEditor();
                         this.unitFormats = kbn.getUnitFormats();
                         this.aceLangTools = ace.acequire("ace/ext/language_tools");
-
                         this.aceLangTools.addCompleter(new GrafanaJSCompleter(this.aceLangTools, this, this.panel));
                     }
                 }, {
@@ -245,7 +248,7 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                                 }.bind(this));
                                 this.editors[nodeId].setOptions({
                                     enableBasicAutocompletion: true,
-                                    enableLiveAutocompletion: true,
+                                    enableLiveAutocompletion: this.panel.editorCompletion,
                                     theme: 'ace/theme/tomorrow_night_bright',
                                     mode: 'ace/mode/javascript',
                                     showPrintMargin: false
@@ -274,7 +277,7 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                                 }.bind(this));
                                 this.editors[nodeId].setOptions({
                                     enableBasicAutocompletion: true,
-                                    enableLiveAutocompletion: true,
+                                    enableLiveAutocompletion: this.panel.editorCompletion,
                                     readOnly: this.panel.useSVGBuilder,
                                     theme: 'ace/theme/tomorrow_night_bright',
                                     mode: 'ace/mode/svg',
@@ -283,6 +286,44 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                             }
                         }.bind(this), 100);
                         return true;
+                    }
+                }, {
+                    key: 'removeSvgIdMapping',
+                    value: function removeSvgIdMapping(svgIdMapping) {
+                        for (var i = 0; i < this.panel.svgIdMappings.length; i++) {
+                            if (svgIdMapping.svgId === this.panel.svgIdMappings[i].svgId) {
+                                this.panel.svgIdMappings.splice(i, 1);
+                                console.log(this.panel.svgIdMappings);
+                                this.updateMappings();
+                            }
+                        }
+                    }
+                }, {
+                    key: 'svgClickHandler',
+                    value: function svgClickHandler(event) {
+                        var clicked = event.target;
+                        while (clicked.id === '') {
+                            clicked = clicked.parentNode;
+                        }
+                        // window.lastClicked = clicked;
+                        //   console.log(clicked.id)
+                        this.panel.svgIdMappings.push({ 'svgId': clicked.id, 'mappedName': '' });
+                        console.log(this.panel.svgIdMappings);
+                    }
+                }, {
+                    key: 'updateClickMapper',
+                    value: function updateClickMapper() {
+                        if (this.panel.clickMapperEnabled) {
+                            document.getElementsByClassName('svg-object')[0].addEventListener('click', this.svgClickHandler.bind(this), false);
+                        } else {
+                            document.getElementsByClassName('svg-object')[0].removeEventListener('click', this.svgClickHandler, false);
+                        }
+                    }
+                }, {
+                    key: 'updateMappings',
+                    value: function updateMappings() {
+                        this.resetSVG();
+                        this.render();
                     }
                 }, {
                     key: 'setUnitFormat',
@@ -304,15 +345,35 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                         this.render();
                     }
                 }, {
+                    key: 'doInit',
+                    value: function doInit(ctrl, svgnode) {
+                        try {
+                            ctrl.panel.doInitUserFunction(ctrl, svgnode);
+                        } catch (error) {
+                            console.log('Failed to run provided user init code, check code for errors and try again. Error: ' + error);
+                        }
+                    }
+                }, {
+                    key: 'handleMetric',
+                    value: function handleMetric(ctrl, svgnode) {
+                        try {
+                            ctrl.panel.handleMetricUserFunction(ctrl, svgnode);
+                        } catch (error) {
+                            console.log('Failed to run provided user event code, check code for errors and try again. Error: ' + error);
+                        }
+                    }
+                }, {
                     key: 'setHandleMetricFunction',
                     value: function setHandleMetricFunction() {
-                        this.panel.handleMetric = Function('ctrl', 'svgnode', this.panel.js_code);
+                        this.panel.handleMetricUserFunction = Function('ctrl', 'svgnode', this.panel.js_code);
+                        this.panel.handleMetric = this.handleMetric;
                     }
                 }, {
                     key: 'setInitFunction',
                     value: function setInitFunction() {
                         this.initialized = 0;
-                        this.panel.doInit = Function('ctrl', 'svgnode', this.panel.js_init_code);
+                        this.panel.doInitUserFunction = Function('ctrl', 'svgnode', this.panel.js_init_code);
+                        this.panel.doInit = this.doInit;
                     }
                 }, {
                     key: 'onRender',

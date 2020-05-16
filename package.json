@@ -1,5 +1,5 @@
 {
-    "name": "marcuscalidus-svg-panel",
+    "name": "aceiot-svg-panel",
     "private": true,
     "version": "0.3.3",
     "description": "",
@@ -29,6 +29,7 @@
         "load-grunt-tasks": "^3.5.2"
     },
     "dependencies": {
+        "@svgdotjs/svg.js": "^3.0.16",
         "brace": "^0.11.1",
         "lodash": "^4.17.15",
         "snapsvg": "^0.5.1"

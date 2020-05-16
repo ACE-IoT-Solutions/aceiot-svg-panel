@@ -2,7 +2,8 @@ import _ from 'lodash';
 import $ from 'jquery';
 import 'jquery.flot';
 import 'jquery.flot.pie';
-import * as SnapLib  from './node_modules/snapsvg/dist/snap.svg-min.js';
+import * as SnapLib from './node_modules/snapsvg/dist/snap.svg-min.js';
+import { SVG } from './node_modules/@svgdotjs/svg.js/dist/svg.min.js';
 
 export default function link(scope, elem, attrs, ctrl) {
   var panel;
@@ -11,7 +12,7 @@ export default function link(scope, elem, attrs, ctrl) {
   var plotCanvas = elem.find('.plot-canvas');
   var svgnode;
 
-  ctrl.events.on('render', function() {
+  ctrl.events.on('render', function () {
     render();
     ctrl.renderingCompleted();
   });
@@ -29,7 +30,7 @@ export default function link(scope, elem, attrs, ctrl) {
       elem.css('height', height + 'px');
 
       return true;
-    } catch(e) { // IE throws errors sometimes
+    } catch (e) { // IE throws errors sometimes
       return false;
     }
   }
@@ -44,7 +45,7 @@ export default function link(scope, elem, attrs, ctrl) {
 
     let childSVG = Snap.parse(panel.svg_data);
     parentSVG.node.append(childSVG.node);
-  } 
+  }
 
   function resizePlotCanvas() {
     var plotCss = {
@@ -55,35 +56,44 @@ export default function link(scope, elem, attrs, ctrl) {
     };
     plotCanvas.css(plotCss);
   }
-   
+
+  function initializeMappings(svgnode) {
+    ctrl.svgElements = {};
+    for(let i=0;i<ctrl.panel.svgIdMappings.length; i++) {
+      ctrl.svgElements[ctrl.panel.svgIdMappings[i].mappedName] = SVG(`#${ctrl.panel.svgIdMappings[i].svgId}`);
+    }
+    console.log(ctrl.svgElements);
+  }
   function render() {
     panel = ctrl.panel;
 
-    if (setElementHeight()) { 
+    if (setElementHeight()) {
       if (svgelem) {
-      	svgnode = svgelem;
-      	
-      	if (svgnode.getAttribute("name") == 'isInitial') {
-      	  svgnode.removeAttribute("name");
-      	  ctrl.initialized = 0;
+        svgnode = svgelem;
+
+        if (svgnode.getAttribute("name") == 'isInitial') {
+          svgnode.removeAttribute("name");
+          ctrl.initialized = 0;
         }
-      
-      	resizePlotCanvas();
-            
-      	if (!ctrl.initialized) {
-        	addSVG();    
-        	panel.doInit(ctrl, svgnode);
-        	ctrl.initialized = 1;
-      	}
-        
-      	panel.handleMetric(ctrl, svgnode); 
-      
-      	svgnode = null;
+
+        resizePlotCanvas();
+
+        if (!ctrl.initialized) {
+          addSVG();
+          initializeMappings(svgnode);
+          panel.doInit(ctrl, svgnode);
+          ctrl.initialized = 1;
+        }
+
+        panel.handleMetric(ctrl, svgnode);
+
+        svgnode = null;
       }
-   	  else {
+      else {
         ctrl.initialized = 0;
       }
     }
   }
 }
+
 

@@ -19,6 +19,28 @@
 		<li>@param&emsp;{HTMLElement}&emsp;svgnode&emsp;Html DOM node containing svg data.</li>
 		</ul>
 		<div id="js_init_code" ng-show="ctrl.doShowAceJs('js_init_code')" style="height: 500px; width: 100%; margin-top: 8px;">Type in a word like "will" below and press ctrl+space or alt+space to get "rhyme completion"</div>
+		<div class="gf-form-group">
+			<div class="gf-form">
+				<gf-form-switch class="gf-form" label="Enable Code Completion" label-class="width-10" checked="ctrl.panel.editorCompletion"></gf-form-switch>
+			</div>	
+		</div>
 
 		<!--textarea class="gf-form-input ng-not-empty" style="font-family:'Courier New', Courier, monospace;min-height: 500px" ng-model="ctrl.panel.js_init_code" ng-change="ctrl.setInitFunction(); ctrl.render();"></textarea-->
+</div>
+<div class="editor-row">
+	<h5 class="section-heading">SVG Mapper</h5>
+	<div class="gf-form-group">
+		<div class="gf-form">
+			<gf-form-switch class="gf-form" label='Enable "Click to Map"' label-class="width-10" checked="ctrl.panel.clickMapperEnabled" on-change="ctrl.updateClickMapper()"></gf-form-switch>
+		</div>	
+	</div>
+	<div class="gf-form-goup">
+		<div class="gf-form" ng-repeat='svgIdMapping in ctrl.panel.svgIdMappings'>
+			<span class="gf-form-label">
+				<i class="fa fa-remove pointer" ng-click="ctrl.removeSvgIdMapping(svgIdMapping)"></i>
+			</span>
+			<label class="gf-form-label width-8">{{svgIdMapping.svgId}}</label>
+			<input type="text" class="gf-form-input width-16" ng-model="svgIdMapping.mappedName" value="{{svgIdMapping.mappedName}}" ng-blur="ctrl.updateMappings()">
+		</div>
+	</div>
 </div>

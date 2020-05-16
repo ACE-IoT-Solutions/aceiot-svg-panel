@@ -1,7 +1,7 @@
 {
     "type": "panel",
-    "name": "SVG",
-    "id": "marcuscalidus-svg-panel",
+    "name": "ACE-SVG",
+    "id": "aceiot-svg-panel",
 
     "info": {
         "description": "SVG panel for grafana",
@@ -27,7 +27,7 @@
             { "name": "SVG data", "path": "img/svgData.png" },
             { "name": "included Demos", "path": "img/demoButtons.png" }
         ],
-        "version": "0.3.3",
+        "version": "0.3.4",
         "updated": "2019-26-11"
     },
 
