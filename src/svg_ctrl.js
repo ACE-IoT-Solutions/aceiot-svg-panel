@@ -4,7 +4,7 @@ import kbn from 'app/core/utils/kbn';
 import TimeSeries from 'app/core/time_series';
 import rendering from './rendering';
 import { SVGDemos } from './demos';
-import { Snap } from './node_modules/snapsvg/dist/snap.svg-min.js';
+import { DataFrame } from '@grafana/data';
 import ace from './node_modules/brace/index.js';
 import './node_modules/brace/ext/language_tools.js';
 import './node_modules/brace/theme/tomorrow_night_bright.js';
@@ -20,52 +20,58 @@ class GrafanaJSCompleter {
     }
 
     getCompletions(editor, session, pos, prefix, callback) {
-        var pos = editor.getCursorPosition();
-        var line = editor.session.getLine(pos.row);
+        try {
+            var pos = editor.getCursorPosition();
+            var line = editor.session.getLine(pos.row);
 
-        prefix = line.substring(0, pos.column).match(/this\.\S*/g);
-        if (prefix) {
-            prefix = prefix[prefix.length - 1];
-            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+            prefix = line.substring(0, pos.column).match(/this\.\S*/g);
+            if (prefix) {
+                prefix = prefix[prefix.length - 1];
+                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-            var panelthis = this.$panel;
-            var evalObj = eval('panel' + prefix);
-            this.evaluatePrefix(evalObj, callback);
-            return;
-        }
+                var panelthis = this.$panel;
+                var evalObj = eval('panel' + prefix);
+                this.evaluatePrefix(evalObj, callback);
+                return;
+            }
 
-        prefix = line.substring(0, pos.column).match(/ctrl\.\S*/g);
-        if (prefix) {
-            prefix = prefix[prefix.length - 1];
-            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+            prefix = line.substring(0, pos.column).match(/ctrl\.\S*/g);
+            if (prefix) {
+                prefix = prefix[prefix.length - 1];
+                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-            var ctrl = this.$control;
-            var evalObj = eval(prefix);
-            this.evaluatePrefix(evalObj, callback);
-            return;
-        }
+                var ctrl = this.$control;
+                var evalObj = eval(prefix);
+                this.evaluatePrefix(evalObj, callback);
+                return;
+            }
 
-        prefix = line.substring(0, pos.column).match(/svgnode\.\S*/g);
-        if (prefix) {
-            prefix = prefix[prefix.length - 1];
-            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+            prefix = line.substring(0, pos.column).match(/svgnode\.\S*/g);
+            if (prefix) {
+                prefix = prefix[prefix.length - 1];
+                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-            var svgnode = document.querySelector('.svg-object');
-            var evalObj = eval(prefix);
-            this.evaluatePrefix(evalObj, callback);
-            return;
-        }
+                var svgnode = document.querySelector('.svg-object');
+                var evalObj = eval(prefix);
+                this.evaluatePrefix(evalObj, callback);
+                return;
+            }
 
-        if (prefix == '') {
-            var wordList = ['ctrl', 'svgnode', 'this'];
+            if (prefix == '') {
+                var wordList = ['ctrl', 'svgnode', 'this'];
 
-            callback(null, wordList.map(function (word) {
-                return {
-                    caption: word,
-                    value: word,
-                    meta: 'Grafana keyword'
-                };
-            }));
+                callback(null, wordList.map(function (word) {
+                    return {
+                        caption: word,
+                        value: word,
+                        meta: 'Grafana keyword'
+                    };
+                }));
+            }
+        } catch (e) {
+            console.error("Autocompleter encountered an error")
+            console.error(e)
+            callback(null, [])
         }
     }
 
@@ -125,6 +131,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
         };
 
         _.defaults(this.panel, panelDefaults);
+        this.dataFormat = 'series';
 
         this.events.on('render', this.onRender.bind(this));
         this.events.on('refresh', this.onRender.bind(this));
@@ -209,29 +216,38 @@ export class SVGCtrl extends MetricsPanelCtrl {
         for (let i = 0; i < this.panel.svgIdMappings.length; i++) {
             if (svgIdMapping.svgId === this.panel.svgIdMappings[i].svgId) {
                 this.panel.svgIdMappings.splice(i, 1);
-                console.log(this.panel.svgIdMappings);
+                // console.log(this.panel.svgIdMappings);
                 this.updateMappings();
             }
         }
     }
     svgClickHandler(event) {
-        let clicked = event.target;
-        while (clicked.id === '') {
-            clicked = clicked.parentNode;
+        if (this.panel.clickMapperEnabled) {
+            let clicked = event.target;
+            while (clicked.id === '') {
+                clicked = clicked.parentNode;
+            }
+            // window.lastClicked = clicked;
+            // console.log(clicked.id)
+            for (let i = 0; i < this.panel.svgIdMappings.length; i++) {
+                if (this.panel.svgIdMappings[i].svgId === clicked.id) {
+                    return
+                }
+            }
+            this.panel.svgIdMappings.push(
+                { 'svgId': clicked.id, 'mappedName': '' }
+            )
+            this.render();
         }
-        // window.lastClicked = clicked;
-        //   console.log(clicked.id)
-        this.panel.svgIdMappings.push(
-            { 'svgId': clicked.id, 'mappedName': '' }
-        )
-        console.log(this.panel.svgIdMappings);
     }
     updateClickMapper() {
+        // console.log(this.panel.clickMapperEnabled);
         if (this.panel.clickMapperEnabled) {
-            document.getElementsByClassName('svg-object')[0].addEventListener('click', this.svgClickHandler.bind(this), false);
-        }
-        else {
-            document.getElementsByClassName('svg-object')[0].removeEventListener('click', this.svgClickHandler, false);
+            // document.getElementsByClassName('svg-object')[0].addEventListener('click', this.svgClickHandler.bind(this), false);
+            document.getElementsByClassName('svg-object')[0].onclick = this.svgClickHandler.bind(this);
+        } else {
+            // document.getElementsByClassName('svg-object')[0].removeEventListener('click', this.svgClickHandler.bind(this), false);
+            document.getElementsByClassName('svg-object')[0].onclick = null
         }
     }
     updateMappings() {
@@ -257,28 +273,28 @@ export class SVGCtrl extends MetricsPanelCtrl {
 
     doInit(ctrl, svgnode) {
         try {
-            ctrl.panel.doInitUserFunction(ctrl, svgnode);
+            ctrl.panel.doInitUserFunction(ctrl, svgnode, ctrl.svgElements);
         } catch (error) {
-            console.log(`Failed to run provided user init code, check code for errors and try again. Error: ${error}`)
+            console.error(`Failed to run provided user init code, check code for errors and try again. Error: ${error}`)
         }
     }
 
     handleMetric(ctrl, svgnode) {
         try {
-            ctrl.panel.handleMetricUserFunction(ctrl, svgnode);
+            ctrl.panel.handleMetricUserFunction(ctrl, svgnode, ctrl.svgElements);
         } catch (error) {
-            console.log(`Failed to run provided user event code, check code for errors and try again. Error: ${error}`)
+            console.error(`Failed to run provided user event code, check code for errors and try again. Error: ${error}`)
         }
     }
 
     setHandleMetricFunction() {
-        this.panel.handleMetricUserFunction = Function('ctrl', 'svgnode', this.panel.js_code);
+        this.panel.handleMetricUserFunction = Function('ctrl', 'svgnode', 'svgmap', this.panel.js_code);
         this.panel.handleMetric = this.handleMetric;
     }
 
     setInitFunction() {
         this.initialized = 0;
-        this.panel.doInitUserFunction = Function('ctrl', 'svgnode', this.panel.js_init_code);
+        this.panel.doInitUserFunction = Function('ctrl', 'svgnode', 'svgmap', this.panel.js_init_code);
         this.panel.doInit = this.doInit;
     }
 
@@ -290,6 +306,9 @@ export class SVGCtrl extends MetricsPanelCtrl {
         if (!_.isFunction(this.panel.doInit)) {
             this.setInitFunction();
         }
+    }
+    handleDataFrame(data) {
+        this.dataFrame = data;
     }
 
     onDataReceived(dataList) {
@@ -438,7 +457,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
     prepareEditor() {
         var request = new XMLHttpRequest();
 
-        request.open("GET", "public/plugins/marcuscalidus-svg-panel/assets/repositories.json");
+        request.open("GET", "public/plugins/aceiot-svg-panel/assets/repositories.json");
         request.addEventListener('load', (event) => {
             if (request.status >= 200 && request.status < 300) {
                 this.panel.repositories = JSON.parse(request.responseText);
@@ -534,7 +553,7 @@ export class SVGCtrl extends MetricsPanelCtrl {
             panel.svgBuilderData.elements.forEach((element) => {
                 promises.push(() => {
                     return $.Deferred((dfd) => {
-                        $.get('public/plugins/marcuscalidus-svg-panel/assets/' + element.path, (data) => {
+                        $.get('public/plugins/aceiot-svg-panel/assets/' + element.path, (data) => {
                             dfd.resolve(data);
                         });
                     }).promise();

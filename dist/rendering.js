@@ -1,9 +1,9 @@
 'use strict';
 
-System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_modules/snapsvg/dist/snap.svg-min.js', './node_modules/@svgdotjs/svg.js/dist/svg.min.js'], function (_export, _context) {
+System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_modules/@svgdotjs/svg.js/dist/svg.min.js'], function (_export, _context) {
   "use strict";
 
-  var _, $, SnapLib, SVG;
+  var _, $, SVG, SVGextend, SVGElement, SVGDom, SVGGet;
 
   function link(scope, elem, attrs, ctrl) {
     var panel;
@@ -35,17 +35,34 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
         return false;
       }
     }
+    //////// SVG.js Extensions
+    // console.log("beginning SVG.js Extensions");
+    SVGextend(SVGElement, {
+      animateContRotate: function animateContRotate(speed) {
+        this.animate(1000).ease('-').rotate(360).loop();
+      }
+    });
+    SVGextend(SVGDom, {
+      updateXHTMLFontText: function updateXHTMLFontText(newText) {
+        var currentElement = this.node;
+        while (currentElement.localName !== "xhtml:font") {
+          currentElement = currentElement.firstElementChild;
+        }
+        currentElement.innerHTML = newText;
+      }
+    });
+    // console.log("ending SVG.js Extensions");
 
     function formatter(label, slice) {
       return "<div style='font-size:" + ctrl.panel.fontSize + ";text-align:center;padding:2px;color:" + slice.color + ";'>" + label + "<br/>" + Math.round(slice.percent) + "%</div>";
     }
 
     function addSVG() {
-      var parentSVG = SnapLib.default(svgnode);
-      parentSVG.paper.clear();
+      ctrl.parentSVG = SVG(svgnode);
+      ctrl.parentSVG.clear();
 
-      var childSVG = Snap.parse(panel.svg_data);
-      parentSVG.node.append(childSVG.node);
+      ctrl.parentSVG.svg(panel.svg_data);
+      // parentSVG.node.append(childSVG.node);
     }
 
     function resizePlotCanvas() {
@@ -61,9 +78,12 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
     function initializeMappings(svgnode) {
       ctrl.svgElements = {};
       for (var i = 0; i < ctrl.panel.svgIdMappings.length; i++) {
-        ctrl.svgElements[ctrl.panel.svgIdMappings[i].mappedName] = SVG('#' + ctrl.panel.svgIdMappings[i].svgId);
+        if (ctrl.panel.svgIdMappings[i].mappedName !== '') {
+          // console.log(ctrl.parentSVG);
+          ctrl.svgElements[ctrl.panel.svgIdMappings[i].mappedName] = ctrl.parentSVG.findOne('#' + ctrl.panel.svgIdMappings[i].svgId);
+        }
       }
-      console.log(ctrl.svgElements);
+      // console.log(ctrl.svgElements);
     }
     function render() {
       panel = ctrl.panel;
@@ -103,10 +123,12 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
       _ = _lodash.default;
     }, function (_jquery) {
       $ = _jquery.default;
-    }, function (_jqueryFlot) {}, function (_jqueryFlotPie) {}, function (_node_modulesSnapsvgDistSnapSvgMinJs) {
-      SnapLib = _node_modulesSnapsvgDistSnapSvgMinJs;
-    }, function (_node_modulesSvgdotjsSvgJsDistSvgMinJs) {
+    }, function (_jqueryFlot) {}, function (_jqueryFlotPie) {}, function (_node_modulesSvgdotjsSvgJsDistSvgMinJs) {
       SVG = _node_modulesSvgdotjsSvgJsDistSvgMinJs.SVG;
+      SVGextend = _node_modulesSvgdotjsSvgJsDistSvgMinJs.extend;
+      SVGElement = _node_modulesSvgdotjsSvgJsDistSvgMinJs.Element;
+      SVGDom = _node_modulesSvgdotjsSvgJsDistSvgMinJs.Dom;
+      SVGGet = _node_modulesSvgdotjsSvgJsDistSvgMinJs.get;
     }],
     execute: function () {}
   };

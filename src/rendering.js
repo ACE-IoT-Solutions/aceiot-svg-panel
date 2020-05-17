@@ -2,8 +2,7 @@ import _ from 'lodash';
 import $ from 'jquery';
 import 'jquery.flot';
 import 'jquery.flot.pie';
-import * as SnapLib from './node_modules/snapsvg/dist/snap.svg-min.js';
-import { SVG } from './node_modules/@svgdotjs/svg.js/dist/svg.min.js';
+import { SVG, extend as SVGextend, Element as SVGElement, Dom as SVGDom, get as SVGGet } from './node_modules/@svgdotjs/svg.js/dist/svg.min.js';
 
 export default function link(scope, elem, attrs, ctrl) {
   var panel;
@@ -34,17 +33,34 @@ export default function link(scope, elem, attrs, ctrl) {
       return false;
     }
   }
+  //////// SVG.js Extensions
+  // console.log("beginning SVG.js Extensions");
+  SVGextend(SVGElement, {
+    animateContRotate: function (speed) {
+      this.animate(1000).ease('-').rotate(360).loop();
+    }
+  })
+  SVGextend(SVGDom, {
+    updateXHTMLFontText: function (newText) {
+      let currentElement = this.node;
+      while (currentElement.localName !== "xhtml:font") {
+        currentElement = currentElement.firstElementChild;
+      }
+      currentElement.innerHTML = newText;
+    }
+  })
+  // console.log("ending SVG.js Extensions");
 
   function formatter(label, slice) {
     return "<div style='font-size:" + ctrl.panel.fontSize + ";text-align:center;padding:2px;color:" + slice.color + ";'>" + label + "<br/>" + Math.round(slice.percent) + "%</div>";
   }
 
   function addSVG() {
-    let parentSVG = SnapLib.default(svgnode);
-    parentSVG.paper.clear();
+    ctrl.parentSVG = SVG(svgnode);
+    ctrl.parentSVG.clear();
 
-    let childSVG = Snap.parse(panel.svg_data);
-    parentSVG.node.append(childSVG.node);
+    ctrl.parentSVG.svg(panel.svg_data);
+    // parentSVG.node.append(childSVG.node);
   }
 
   function resizePlotCanvas() {
@@ -59,10 +75,13 @@ export default function link(scope, elem, attrs, ctrl) {
 
   function initializeMappings(svgnode) {
     ctrl.svgElements = {};
-    for(let i=0;i<ctrl.panel.svgIdMappings.length; i++) {
-      ctrl.svgElements[ctrl.panel.svgIdMappings[i].mappedName] = SVG(`#${ctrl.panel.svgIdMappings[i].svgId}`);
+    for (let i = 0; i < ctrl.panel.svgIdMappings.length; i++) {
+      if (ctrl.panel.svgIdMappings[i].mappedName !== '') {
+        // console.log(ctrl.parentSVG);
+        ctrl.svgElements[ctrl.panel.svgIdMappings[i].mappedName] = ctrl.parentSVG.findOne(`#${ctrl.panel.svgIdMappings[i].svgId}`);
+      }
     }
-    console.log(ctrl.svgElements);
+    // console.log(ctrl.svgElements);
   }
   function render() {
     panel = ctrl.panel;

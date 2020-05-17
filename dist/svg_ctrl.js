@@ -1,9 +1,9 @@
 'use strict';
 
-System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/time_series', './rendering', './demos', './node_modules/snapsvg/dist/snap.svg-min.js', './node_modules/brace/index.js', './node_modules/brace/ext/language_tools.js', './node_modules/brace/theme/tomorrow_night_bright.js', './node_modules/brace/mode/javascript.js', './node_modules/brace/mode/svg.js'], function (_export, _context) {
+System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/time_series', './rendering', './demos', '@grafana/data', './node_modules/brace/index.js', './node_modules/brace/ext/language_tools.js', './node_modules/brace/theme/tomorrow_night_bright.js', './node_modules/brace/mode/javascript.js', './node_modules/brace/mode/svg.js'], function (_export, _context) {
     "use strict";
 
-    var MetricsPanelCtrl, _, kbn, TimeSeries, rendering, SVGDemos, Snap, ace, _typeof, _createClass, GrafanaJSCompleter, SVGCtrl;
+    var MetricsPanelCtrl, _, kbn, TimeSeries, rendering, SVGDemos, DataFrame, ace, _typeof, _createClass, GrafanaJSCompleter, SVGCtrl;
 
     function _possibleConstructorReturn(self, call) {
         if (!self) {
@@ -48,8 +48,8 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
             rendering = _rendering.default;
         }, function (_demos) {
             SVGDemos = _demos.SVGDemos;
-        }, function (_node_modulesSnapsvgDistSnapSvgMinJs) {
-            Snap = _node_modulesSnapsvgDistSnapSvgMinJs.Snap;
+        }, function (_grafanaData) {
+            DataFrame = _grafanaData.DataFrame;
         }, function (_node_modulesBraceIndexJs) {
             ace = _node_modulesBraceIndexJs.default;
         }, function (_node_modulesBraceExtLanguage_toolsJs) {}, function (_node_modulesBraceThemeTomorrow_night_brightJs) {}, function (_node_modulesBraceModeJavascriptJs) {}, function (_node_modulesBraceModeSvgJs) {}],
@@ -90,52 +90,58 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                 _createClass(GrafanaJSCompleter, [{
                     key: 'getCompletions',
                     value: function getCompletions(editor, session, pos, prefix, callback) {
-                        var pos = editor.getCursorPosition();
-                        var line = editor.session.getLine(pos.row);
+                        try {
+                            var pos = editor.getCursorPosition();
+                            var line = editor.session.getLine(pos.row);
 
-                        prefix = line.substring(0, pos.column).match(/this\.\S*/g);
-                        if (prefix) {
-                            prefix = prefix[prefix.length - 1];
-                            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+                            prefix = line.substring(0, pos.column).match(/this\.\S*/g);
+                            if (prefix) {
+                                prefix = prefix[prefix.length - 1];
+                                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-                            var panelthis = this.$panel;
-                            var evalObj = eval('panel' + prefix);
-                            this.evaluatePrefix(evalObj, callback);
-                            return;
-                        }
+                                var panelthis = this.$panel;
+                                var evalObj = eval('panel' + prefix);
+                                this.evaluatePrefix(evalObj, callback);
+                                return;
+                            }
 
-                        prefix = line.substring(0, pos.column).match(/ctrl\.\S*/g);
-                        if (prefix) {
-                            prefix = prefix[prefix.length - 1];
-                            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+                            prefix = line.substring(0, pos.column).match(/ctrl\.\S*/g);
+                            if (prefix) {
+                                prefix = prefix[prefix.length - 1];
+                                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-                            var ctrl = this.$control;
-                            var evalObj = eval(prefix);
-                            this.evaluatePrefix(evalObj, callback);
-                            return;
-                        }
+                                var ctrl = this.$control;
+                                var evalObj = eval(prefix);
+                                this.evaluatePrefix(evalObj, callback);
+                                return;
+                            }
 
-                        prefix = line.substring(0, pos.column).match(/svgnode\.\S*/g);
-                        if (prefix) {
-                            prefix = prefix[prefix.length - 1];
-                            prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+                            prefix = line.substring(0, pos.column).match(/svgnode\.\S*/g);
+                            if (prefix) {
+                                prefix = prefix[prefix.length - 1];
+                                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-                            var svgnode = document.querySelector('.svg-object');
-                            var evalObj = eval(prefix);
-                            this.evaluatePrefix(evalObj, callback);
-                            return;
-                        }
+                                var svgnode = document.querySelector('.svg-object');
+                                var evalObj = eval(prefix);
+                                this.evaluatePrefix(evalObj, callback);
+                                return;
+                            }
 
-                        if (prefix == '') {
-                            var wordList = ['ctrl', 'svgnode', 'this'];
+                            if (prefix == '') {
+                                var wordList = ['ctrl', 'svgnode', 'this'];
 
-                            callback(null, wordList.map(function (word) {
-                                return {
-                                    caption: word,
-                                    value: word,
-                                    meta: 'Grafana keyword'
-                                };
-                            }));
+                                callback(null, wordList.map(function (word) {
+                                    return {
+                                        caption: word,
+                                        value: word,
+                                        meta: 'Grafana keyword'
+                                    };
+                                }));
+                            }
+                        } catch (e) {
+                            console.error("Autocompleter encountered an error");
+                            console.error(e);
+                            callback(null, []);
                         }
                     }
                 }, {
@@ -202,6 +208,7 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                     };
 
                     _.defaults(_this.panel, panelDefaults);
+                    _this.dataFormat = 'series';
 
                     _this.events.on('render', _this.onRender.bind(_this));
                     _this.events.on('refresh', _this.onRender.bind(_this));
@@ -293,7 +300,7 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                         for (var i = 0; i < this.panel.svgIdMappings.length; i++) {
                             if (svgIdMapping.svgId === this.panel.svgIdMappings[i].svgId) {
                                 this.panel.svgIdMappings.splice(i, 1);
-                                console.log(this.panel.svgIdMappings);
+                                // console.log(this.panel.svgIdMappings);
                                 this.updateMappings();
                             }
                         }
@@ -301,22 +308,32 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                 }, {
                     key: 'svgClickHandler',
                     value: function svgClickHandler(event) {
-                        var clicked = event.target;
-                        while (clicked.id === '') {
-                            clicked = clicked.parentNode;
+                        if (this.panel.clickMapperEnabled) {
+                            var clicked = event.target;
+                            while (clicked.id === '') {
+                                clicked = clicked.parentNode;
+                            }
+                            // window.lastClicked = clicked;
+                            // console.log(clicked.id)
+                            for (var i = 0; i < this.panel.svgIdMappings.length; i++) {
+                                if (this.panel.svgIdMappings[i].svgId === clicked.id) {
+                                    return;
+                                }
+                            }
+                            this.panel.svgIdMappings.push({ 'svgId': clicked.id, 'mappedName': '' });
+                            this.render();
                         }
-                        // window.lastClicked = clicked;
-                        //   console.log(clicked.id)
-                        this.panel.svgIdMappings.push({ 'svgId': clicked.id, 'mappedName': '' });
-                        console.log(this.panel.svgIdMappings);
                     }
                 }, {
                     key: 'updateClickMapper',
                     value: function updateClickMapper() {
+                        // console.log(this.panel.clickMapperEnabled);
                         if (this.panel.clickMapperEnabled) {
-                            document.getElementsByClassName('svg-object')[0].addEventListener('click', this.svgClickHandler.bind(this), false);
+                            // document.getElementsByClassName('svg-object')[0].addEventListener('click', this.svgClickHandler.bind(this), false);
+                            document.getElementsByClassName('svg-object')[0].onclick = this.svgClickHandler.bind(this);
                         } else {
-                            document.getElementsByClassName('svg-object')[0].removeEventListener('click', this.svgClickHandler, false);
+                            // document.getElementsByClassName('svg-object')[0].removeEventListener('click', this.svgClickHandler.bind(this), false);
+                            document.getElementsByClassName('svg-object')[0].onclick = null;
                         }
                     }
                 }, {
@@ -348,31 +365,31 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                     key: 'doInit',
                     value: function doInit(ctrl, svgnode) {
                         try {
-                            ctrl.panel.doInitUserFunction(ctrl, svgnode);
+                            ctrl.panel.doInitUserFunction(ctrl, svgnode, ctrl.svgElements);
                         } catch (error) {
-                            console.log('Failed to run provided user init code, check code for errors and try again. Error: ' + error);
+                            console.error('Failed to run provided user init code, check code for errors and try again. Error: ' + error);
                         }
                     }
                 }, {
                     key: 'handleMetric',
                     value: function handleMetric(ctrl, svgnode) {
                         try {
-                            ctrl.panel.handleMetricUserFunction(ctrl, svgnode);
+                            ctrl.panel.handleMetricUserFunction(ctrl, svgnode, ctrl.svgElements);
                         } catch (error) {
-                            console.log('Failed to run provided user event code, check code for errors and try again. Error: ' + error);
+                            console.error('Failed to run provided user event code, check code for errors and try again. Error: ' + error);
                         }
                     }
                 }, {
                     key: 'setHandleMetricFunction',
                     value: function setHandleMetricFunction() {
-                        this.panel.handleMetricUserFunction = Function('ctrl', 'svgnode', this.panel.js_code);
+                        this.panel.handleMetricUserFunction = Function('ctrl', 'svgnode', 'svgmap', this.panel.js_code);
                         this.panel.handleMetric = this.handleMetric;
                     }
                 }, {
                     key: 'setInitFunction',
                     value: function setInitFunction() {
                         this.initialized = 0;
-                        this.panel.doInitUserFunction = Function('ctrl', 'svgnode', this.panel.js_init_code);
+                        this.panel.doInitUserFunction = Function('ctrl', 'svgnode', 'svgmap', this.panel.js_init_code);
                         this.panel.doInit = this.doInit;
                     }
                 }, {
@@ -385,6 +402,11 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                         if (!_.isFunction(this.panel.doInit)) {
                             this.setInitFunction();
                         }
+                    }
+                }, {
+                    key: 'handleDataFrame',
+                    value: function handleDataFrame(data) {
+                        this.dataFrame = data;
                     }
                 }, {
                     key: 'onDataReceived',
@@ -550,7 +572,7 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
 
                         var request = new XMLHttpRequest();
 
-                        request.open("GET", "public/plugins/marcuscalidus-svg-panel/assets/repositories.json");
+                        request.open("GET", "public/plugins/aceiot-svg-panel/assets/repositories.json");
                         request.addEventListener('load', function (event) {
                             if (request.status >= 200 && request.status < 300) {
                                 _this2.panel.repositories = JSON.parse(request.responseText);
@@ -651,7 +673,7 @@ System.register(['app/plugins/sdk', 'lodash', 'app/core/utils/kbn', 'app/core/ti
                             panel.svgBuilderData.elements.forEach(function (element) {
                                 promises.push(function () {
                                     return $.Deferred(function (dfd) {
-                                        $.get('public/plugins/marcuscalidus-svg-panel/assets/' + element.path, function (data) {
+                                        $.get('public/plugins/aceiot-svg-panel/assets/' + element.path, function (data) {
                                             dfd.resolve(data);
                                         });
                                     }).promise();
