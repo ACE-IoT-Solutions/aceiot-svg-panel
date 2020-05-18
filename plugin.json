@@ -15,7 +15,7 @@
             "large": "img/svgpanel_logo_large.png"
         },
         "links": [
-            { "name": "Snap.svg", "url": "http://snapsvg.io/" },
+            { "name": "SVG.js", "url": "http://svgjs.com" },
             { "name": "MIT License", "url": "https://github.com/MarcusCalidus/marcuscalidus-svg-panel/blob/master/LICENSE" },
             { "name": "Project", "url": "https://github.com/MarcusCalidus/marcuscalidus-svg-panel" }
         ],
@@ -23,12 +23,10 @@
             { "name": "In Action", "path": "img/inAction.png" },
             { "name": "Event onInit", "path": "img/onInit.png" },
             { "name": "Event onHandleMetric", "path": "img/onHandleMetric.png" },
-            { "name": "SVG Builder", "path": "img/svgBuilder.png" },
-            { "name": "SVG data", "path": "img/svgData.png" },
-            { "name": "included Demos", "path": "img/demoButtons.png" }
+            { "name": "SVG data", "path": "img/svgData.png" }
         ],
         "version": "0.3.4",
-        "updated": "2019-26-11"
+        "updated": "2020-05-18"
     },
 
     "dependencies": {

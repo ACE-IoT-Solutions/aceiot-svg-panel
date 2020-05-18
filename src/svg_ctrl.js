@@ -3,13 +3,12 @@ import _ from 'lodash';
 import kbn from 'app/core/utils/kbn';
 import TimeSeries from 'app/core/time_series';
 import rendering from './rendering';
-import { SVGDemos } from './demos';
-import { DataFrame } from '@grafana/data';
 import ace from './node_modules/brace/index.js';
 import './node_modules/brace/ext/language_tools.js';
 import './node_modules/brace/theme/tomorrow_night_bright.js';
 import './node_modules/brace/mode/javascript.js';
 import './node_modules/brace/mode/svg.js';
+import { DataFrame, PanelEvents } from '@grafana/data';
 
 
 class GrafanaJSCompleter {
@@ -51,14 +50,24 @@ class GrafanaJSCompleter {
                 prefix = prefix[prefix.length - 1];
                 prefix = prefix.substring(0, prefix.lastIndexOf('.'));
 
-                var svgnode = document.querySelector('.svg-object');
+                var svgnode = this.$control.parentSVG.node
                 var evalObj = eval(prefix);
                 this.evaluatePrefix(evalObj, callback);
                 return;
             }
 
+            prefix = line.substring(0, pos.column).match(/svgmap\.\S*/g);
+            if (prefix) {
+                prefix = prefix[prefix.length - 1];
+                prefix = prefix.substring(0, prefix.lastIndexOf('.'));
+
+                var svgmap = this.$control.svgElements
+                var evalObj = eval(prefix);
+                this.evaluatePrefix(evalObj, callback);
+                return;
+            }
             if (prefix == '') {
-                var wordList = ['ctrl', 'svgnode', 'this'];
+                var wordList = ['ctrl', 'svgnode', 'svgmap', 'this'];
 
                 callback(null, wordList.map(function (word) {
                     return {
@@ -112,7 +121,6 @@ export class SVGCtrl extends MetricsPanelCtrl {
             svg_data: '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 1000 1000" ></svg>',
             js_code: '',
             js_init_code: '',
-            useSVGBuilder: false,
             clickMapperEnabled: false,
             svgIdMappings: [],
             svgElements: {},
@@ -133,23 +141,22 @@ export class SVGCtrl extends MetricsPanelCtrl {
         _.defaults(this.panel, panelDefaults);
         this.dataFormat = 'series';
 
-        this.events.on('render', this.onRender.bind(this));
-        this.events.on('refresh', this.onRender.bind(this));
-        this.events.on('data-received', this.onDataReceived.bind(this));
-        this.events.on('data-error', this.onDataError.bind(this));
-        this.events.on('data-snapshot-load', this.onDataReceived.bind(this));
-        this.events.on('init-edit-mode', this.onInitEditMode.bind(this));
+        this.events.on(PanelEvents.render, this.onRender.bind(this));
+        this.events.on(PanelEvents.refresh, this.onRender.bind(this));
+        this.events.on(PanelEvents.dataReceived, this.onDataReceived.bind(this));
+        this.events.on(PanelEvents.dataError, this.onDataError.bind(this));
+        this.events.on(PanelEvents.dataSnapshotLoad, this.onDataReceived.bind(this));
+        this.events.on(PanelEvents.editModeInitialized, this.onInitEditMode.bind(this));
 
-        this.demos = new SVGDemos(this);
         this.initialized = 0;
         this.editors = {};
+
     }
 
     onInitEditMode() {
-        this.addEditorTab('SVG Builder', 'public/plugins/aceiot-svg-panel/editor_builder.html', 2);
         this.addEditorTab('SVG', 'public/plugins/aceiot-svg-panel/editor_svg.html', 3);
         this.addEditorTab('Events', 'public/plugins/aceiot-svg-panel/editor_events.html', 4);
-        this.prepareEditor();
+        this.addEditorTab('SVG ID Mapper', 'public/plugins/aceiot-svg-panel/editor_mapper.html', 5);
         this.unitFormats = kbn.getUnitFormats();
         this.aceLangTools = ace.acequire("ace/ext/language_tools");
         this.aceLangTools.addCompleter(new GrafanaJSCompleter(this.aceLangTools, this, this.panel));
@@ -216,7 +223,6 @@ export class SVGCtrl extends MetricsPanelCtrl {
         for (let i = 0; i < this.panel.svgIdMappings.length; i++) {
             if (svgIdMapping.svgId === this.panel.svgIdMappings[i].svgId) {
                 this.panel.svgIdMappings.splice(i, 1);
-                // console.log(this.panel.svgIdMappings);
                 this.updateMappings();
             }
         }
@@ -227,8 +233,6 @@ export class SVGCtrl extends MetricsPanelCtrl {
             while (clicked.id === '') {
                 clicked = clicked.parentNode;
             }
-            // window.lastClicked = clicked;
-            // console.log(clicked.id)
             for (let i = 0; i < this.panel.svgIdMappings.length; i++) {
                 if (this.panel.svgIdMappings[i].svgId === clicked.id) {
                     return
@@ -237,8 +241,25 @@ export class SVGCtrl extends MetricsPanelCtrl {
             this.panel.svgIdMappings.push(
                 { 'svgId': clicked.id, 'mappedName': '' }
             )
-            this.render();
+            this.$rootScope.$apply();
         }
+    }
+    addManualSvgIdMapping(svgIdMapping) {
+        this.panel.svgIdMappings.push(
+            svgIdMapping
+        )
+    }
+    uploadSVG(event) {
+        let target = event.currentTarget;
+        let file = target.files[0];
+        let reader = new FileReader();
+        if (target.files && file) {
+            reader.onload = function (event) {
+                this.panel.svg_data = event.target.result;
+                this.resetSVG();
+            }
+        }
+
     }
     updateClickMapper() {
         // console.log(this.panel.clickMapperEnabled);
@@ -443,142 +464,6 @@ export class SVGCtrl extends MetricsPanelCtrl {
     link(scope, elem, attrs, ctrl) {
         rendering(scope, elem, attrs, ctrl);
     }
-
-    removeElement(idx) {
-        this.panel.svgBuilderData.elements.splice(idx, 1);
-        this.buildSVG();
-    }
-
-    moveElement(idx, steps) {
-        this.panel.svgBuilderData.elements = _.move(this.panel.svgBuilderData.elements, idx, idx + steps);
-        this.buildSVG();
-    }
-
-    prepareEditor() {
-        var request = new XMLHttpRequest();
-
-        request.open("GET", "public/plugins/aceiot-svg-panel/assets/repositories.json");
-        request.addEventListener('load', (event) => {
-            if (request.status >= 200 && request.status < 300) {
-                this.panel.repositories = JSON.parse(request.responseText);
-            } else {
-                console.warn(request.statusText, request.responseText);
-            }
-        });
-        request.send();
-    }
-
-    repositorySelected() {
-        let newCategories = [];
-        this.panel.selectedSVG = null;
-
-        if (this.panel.repositories[this.panel.selectedRepository]) {
-            _.forEach(this.panel.repositories[this.panel.selectedRepository].items,
-                (item) => {
-                    if (!_.includes(newCategories, item.category)) {
-                        newCategories.push(item.category);
-                    }
-                })
-        }
-
-        this.panel.categories = newCategories;
-    }
-
-    categorySelected() {
-        this.panel.svglist = [];
-        this.panel.selectedSVG = null;
-
-        if (this.panel.repositories[this.panel.selectedRepository]) {
-            this.panel.svglist = _.filter(this.panel.repositories[this.panel.selectedRepository].items,
-                (item) => item.category === this.panel.selectedCategory);
-        }
-    }
-
-    addSVGItem() {
-        let svg = JSON.parse(this.panel.selectedSVG);
-
-        this.panel.svgBuilderData.elements.push({
-            name: svg.name,
-            id: svg.name,
-            path: svg.path,
-            x: 0,
-            y: 0,
-            rotate: 0,
-            rcenterx: 0,
-            rcentery: 0,
-            scale: 1
-        })
-        this.buildSVG();
-    }
-
-    buildSVG() {
-        var all = function (array) {
-            var deferred = $.Deferred();
-            var fulfilled = 0,
-                length = array.length;
-            var results = [];
-
-            if (length === 0) {
-                deferred.resolve(results);
-            } else {
-                array.forEach(function (promise, i) {
-                    $.when(promise()).then(function (value) {
-                        results[i] = value;
-                        fulfilled++;
-                        if (fulfilled === length) {
-                            deferred.resolve(results);
-                        }
-                    });
-                });
-            }
-
-            return deferred.promise();
-        };
-
-        let panel = this.panel;
-        if (panel.useSVGBuilder) {
-            let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-            let svgNS = svg.namespaceURI;
-
-            svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            svg.setAttribute('width', panel.svgBuilderData.width);
-            svg.setAttribute('height', panel.svgBuilderData.height);
-            svg.setAttribute('viewBox', panel.svgBuilderData.viewport.x + ' ' +
-                panel.svgBuilderData.viewport.y + ' ' +
-                panel.svgBuilderData.viewport.width + ' ' +
-                panel.svgBuilderData.viewport.height);
-
-            let promises = [];
-
-            panel.svgBuilderData.elements.forEach((element) => {
-                promises.push(() => {
-                    return $.Deferred((dfd) => {
-                        $.get('public/plugins/aceiot-svg-panel/assets/' + element.path, (data) => {
-                            dfd.resolve(data);
-                        });
-                    }).promise();
-                });
-            });
-
-            $.when(all(promises)).then(results => {
-                results.forEach(
-                    (svgFragment, i) => {
-                        let g = document.createElementNS(svgNS, 'g');
-                        g.setAttribute('id', panel.svgBuilderData.elements[i].id)
-                        g.setAttribute('transform', 'translate(' + panel.svgBuilderData.elements[i].x + ' ' + panel.svgBuilderData.elements[i].y + ') ' +
-                            'rotate(' + panel.svgBuilderData.elements[i].rotate + ' ' + panel.svgBuilderData.elements[i].rcenterx + ' ' + panel.svgBuilderData.elements[i].rcentery + ') ' +
-                            'scale(' + panel.svgBuilderData.elements[i].scale + ')');
-                        svg.appendChild(g);
-                        $(g).html(svgFragment.documentElement.children);
-                    }
-                )
-                panel.svg_data = svg.outerHTML;
-                this.resetSVG();
-                this.render();
-            });
-        }
-    }
-
 }
 
 SVGCtrl.templateUrl = 'module.html';

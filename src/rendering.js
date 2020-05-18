@@ -3,6 +3,7 @@ import $ from 'jquery';
 import 'jquery.flot';
 import 'jquery.flot.pie';
 import { SVG, extend as SVGextend, Element as SVGElement, Dom as SVGDom, get as SVGGet } from './node_modules/@svgdotjs/svg.js/dist/svg.min.js';
+import { PanelEvents } from '@grafana/data';
 
 export default function link(scope, elem, attrs, ctrl) {
   var panel;
@@ -11,7 +12,7 @@ export default function link(scope, elem, attrs, ctrl) {
   var plotCanvas = elem.find('.plot-canvas');
   var svgnode;
 
-  ctrl.events.on('render', function () {
+  ctrl.events.on(PanelEvents.render, function () {
     render();
     ctrl.renderingCompleted();
   });
@@ -37,7 +38,10 @@ export default function link(scope, elem, attrs, ctrl) {
   // console.log("beginning SVG.js Extensions");
   SVGextend(SVGElement, {
     animateContRotate: function (speed) {
-      this.animate(1000).ease('-').rotate(360).loop();
+      return this.animate(1000).ease('-').rotate(360).loop();
+    },
+    stopAnimation: function () {
+      this.timeline().stop();
     }
   })
   SVGextend(SVGDom, {
@@ -101,6 +105,7 @@ export default function link(scope, elem, attrs, ctrl) {
           addSVG();
           initializeMappings(svgnode);
           panel.doInit(ctrl, svgnode);
+          ctrl.updateClickMapper();
           ctrl.initialized = 1;
         }
 

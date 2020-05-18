@@ -1,9 +1,9 @@
 'use strict';
 
-System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_modules/@svgdotjs/svg.js/dist/svg.min.js'], function (_export, _context) {
+System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_modules/@svgdotjs/svg.js/dist/svg.min.js', '@grafana/data'], function (_export, _context) {
   "use strict";
 
-  var _, $, SVG, SVGextend, SVGElement, SVGDom, SVGGet;
+  var _, $, SVG, SVGextend, SVGElement, SVGDom, SVGGet, PanelEvents;
 
   function link(scope, elem, attrs, ctrl) {
     var panel;
@@ -12,7 +12,7 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
     var plotCanvas = elem.find('.plot-canvas');
     var svgnode;
 
-    ctrl.events.on('render', function () {
+    ctrl.events.on(PanelEvents.render, function () {
       render();
       ctrl.renderingCompleted();
     });
@@ -39,7 +39,10 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
     // console.log("beginning SVG.js Extensions");
     SVGextend(SVGElement, {
       animateContRotate: function animateContRotate(speed) {
-        this.animate(1000).ease('-').rotate(360).loop();
+        return this.animate(1000).ease('-').rotate(360).loop();
+      },
+      stopAnimation: function stopAnimation() {
+        this.timeline().stop();
       }
     });
     SVGextend(SVGDom, {
@@ -103,6 +106,7 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
             addSVG();
             initializeMappings(svgnode);
             panel.doInit(ctrl, svgnode);
+            ctrl.updateClickMapper();
             ctrl.initialized = 1;
           }
 
@@ -129,6 +133,8 @@ System.register(['lodash', 'jquery', 'jquery.flot', 'jquery.flot.pie', './node_m
       SVGElement = _node_modulesSvgdotjsSvgJsDistSvgMinJs.Element;
       SVGDom = _node_modulesSvgdotjsSvgJsDistSvgMinJs.Dom;
       SVGGet = _node_modulesSvgdotjsSvgJsDistSvgMinJs.get;
+    }, function (_grafanaData) {
+      PanelEvents = _grafanaData.PanelEvents;
     }],
     execute: function () {}
   };

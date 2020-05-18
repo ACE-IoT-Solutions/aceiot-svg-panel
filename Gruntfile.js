@@ -35,6 +35,7 @@ module.exports = function(grunt) {
                 expand: true,
                 src: [
                     'node_modules/@svgdotjs/svg.js/dist/svg.min.js',
+                    'node_modules/@svgdotjs/svg.js/dist/svg.min.js.map',
                     'node_modules/brace/index.js',
                     'node_modules/brace/ext/language_tools.js',
                     'node_modules/brace/mode/javascript.js',
